@@ -1,11 +1,11 @@
-  - name: MediaLibrary
-    host: atool_medialibrary_1
+  - name: Service 1
+    host: service_1
     port: 80
 
-  - name: ACL
-    host: atool_acl_1
+  - name: Service 2
+    host: service_2
     port: 8080
 
-  - name: Learning Object Library
-    host: atool_learningobject_1
+  - name: Service 3
+    host: service_3
     port: 3000
