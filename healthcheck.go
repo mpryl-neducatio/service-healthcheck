@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -15,8 +16,8 @@ type Service struct {
 	Port int
 }
 
-func readConfig() (services []Service) {
-	content, err := ioutil.ReadFile("services.yml")
+func readConfig(configFilePath string) (services []Service) {
+	content, err := ioutil.ReadFile(configFilePath)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -28,13 +29,13 @@ func readConfig() (services []Service) {
 	return
 }
 
-func waitForService(name string, host string, port int, c chan int) {
+func waitForService(name string, host string, port int, c chan int, waitInterval int) {
 	counter := 0
 	for {
 		_, err := net.Dial("tcp", fmt.Sprintf("%s:%d", host, port))
 		if err != nil {
-			time.Sleep(1000 * time.Millisecond)
-			counter += 1
+			time.Sleep(time.Duration(waitInterval) * 1000 * time.Millisecond)
+			counter += waitInterval
 			fmt.Printf("Waiting for %s for %d seconds...\n", name, counter)
 		} else {
 			fmt.Printf("%s is ready after %d seconds.\n", name, counter)
@@ -44,12 +45,21 @@ func waitForService(name string, host string, port int, c chan int) {
 	}
 }
 
+func readCmdLineFlags() (string, int){
+	configFileFlag := flag.String("f", "services.yml", "Config file path")
+	waitIntervalFlag := flag.Int("i", 5, "Wait interval in seconds")
+	flag.Parse()
+
+	return *configFileFlag, *waitIntervalFlag
+}
+
 func main() {
-	services := readConfig()
+	configFilePath, waitInterval := readCmdLineFlags()
+	services := readConfig(configFilePath)
 	counter := 0
 	c := make(chan int, len(services))
 	for _, service := range services {
-		go waitForService(service.Name, service.Host, service.Port, c)
+		go waitForService(service.Name, service.Host, service.Port, c, waitInterval)
 	}
 	for i := range c {
 		counter += i
