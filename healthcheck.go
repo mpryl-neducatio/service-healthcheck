@@ -55,6 +55,7 @@ func readCmdLineFlags() (string, int){
 
 func main() {
 	configFilePath, waitInterval := readCmdLineFlags()
+	fmt.Printf("Reading services config from file: %s\n", configFilePath)
 	services := readConfig(configFilePath)
 	counter := 0
 	c := make(chan int, len(services))
