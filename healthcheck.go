@@ -3,10 +3,11 @@ package main
 import (
 	"flag"
 	"fmt"
+	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"
 	"net"
-	"gopkg.in/yaml.v2"
+	"os"
 	"time"
 )
 
@@ -45,18 +46,7 @@ func waitForService(name string, host string, port int, c chan int, waitInterval
 	}
 }
 
-func readCmdLineFlags() (string, int){
-	configFileFlag := flag.String("f", "services.yml", "Config file path")
-	waitIntervalFlag := flag.Int("i", 5, "Wait interval in seconds")
-	flag.Parse()
-
-	return *configFileFlag, *waitIntervalFlag
-}
-
-func main() {
-	configFilePath, waitInterval := readCmdLineFlags()
-	fmt.Printf("Reading services config from file: %s\n", configFilePath)
-	services := readConfig(configFilePath)
+func waitForServices(services []Service, waitInterval int) {
 	counter := 0
 	c := make(chan int, len(services))
 	for _, service := range services {
@@ -67,5 +57,41 @@ func main() {
 		if counter == len(services) {
 			close(c)
 		}
+	}
+}
+
+func isHealthy(host string, port int) bool {
+	_, err := net.Dial("tcp", fmt.Sprintf("%s:%d", host, port))
+	return err == nil
+}
+
+func sendHealthCheckExitCode(services []Service) {
+	for _, service := range services {
+		if !isHealthy(service.Host, service.Port) {
+			os.Exit(1)
+		}
+	}
+	os.Exit(0)
+}
+
+func readCmdLineFlags() (string, int, string){
+	configFileFlag := flag.String("f", "services.yml", "Config file path")
+	waitIntervalFlag := flag.Int("i", 5, "Wait interval in seconds")
+	modeFlag := flag.String("m", "wait", "Health check mode (wait|exit_code)")
+	flag.Parse()
+
+	return *configFileFlag, *waitIntervalFlag, *modeFlag
+}
+
+func main() {
+	configFilePath, waitInterval, mode := readCmdLineFlags()
+	fmt.Printf("Reading services config from file: %s\n", configFilePath)
+	services := readConfig(configFilePath)
+	if mode == "wait" {
+		waitForServices(services, waitInterval)
+	} else if mode == "exit_code" {
+		sendHealthCheckExitCode(services)
+	} else {
+		log.Fatalf("Incorrect mode %s", mode)
 	}
 }
